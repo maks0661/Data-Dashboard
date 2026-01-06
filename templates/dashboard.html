@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Универсальный Data Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Универсальный Дашборд для Визуализации Данных</h1>
+    <!-- форма для загрузки файла -->
+    <div id="upload-form">
+        <h2>Загрузить данные</h2>
+        <input type="file" id="fileInput" accept=".csv,.txt,.json,.docx">
+        <button id="uploadButton">Загрузить</button>
+        <p id="uploadStatus"></p>
+    </div>
+    <!-- выбор колонок -->
+    <div id="column-selection" style="display: none;">
+        <h2>Выберите колонки</h2>
+        <label for="xCol">X-ось:</label>
+        <select id="xCol"></select>
+        <label for="yCol">Y-ось (число):</label>
+        <select id="yCol"></select>
+        <button id="analyzeButton">Анализировать</button>
+    </div>
+    <!-- статистика -->
+    <div id="stats-container" style="display: none;">
+        <h2>Статистика</h2>
+        <ul id="stats"></ul>
+    </div>
+    <!-- график -->
+    <div id="chart-container" style="display: none;">
+        <canvas id="dataChart"></canvas>
+    </div>
+
+    <script>
+        let chart; // Chart.js объект
+        let fileKey;
+
+        // -- загрузка файла --
+        document.getElementById('uploadButton').addEventListener('click', () => {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('uploadStatus');
+            if (!fileInput.files.length) {
+                status.textContent = 'Выберите файл!';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    status.textContent = 'Ошибка: ' + data.error;
+                    return;
+                }
+
+                status.textContent = 'Файл загружен! Выберите колонки.';
+                fileKey = data.file_key;
+
+                // показать выбор колонок
+                document.getElementById('column-selection').style.display = 'block';
+
+                // заполнить селекты
+                const xSelect = document.getElementById('xCol');
+                const ySelect = document.getElementById('yCol');
+                xSelect.innerHTML = '';
+                ySelect.innerHTML = '';
+                data.columns.forEach(col => {
+                    const option = document.createElement('option');
+                    option.value = col;
+                    option.textContent = col;
+                    xSelect.appendChild(option.cloneNode(true));
+                    ySelect.appendChild(option);
+                });
+            })
+            .catch(err => {
+                status.textContent = 'Ошибка загрузки: ' + err;
+            });
+        });
+
+        // ---------- анализ ----------
+        document.getElementById('analyzeButton').addEventListener('click', () => {
+            const xCol = document.getElementById('xCol').value;
+            const yCol = document.getElementById('yCol').value;
+            const status = document.getElementById('uploadStatus');
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_key: fileKey, x_col: xCol, y_col: yCol })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    status.textContent = 'Ошибка: ' + data.error;
+                    return;
+                }
+
+                status.textContent = 'Анализ завершён!';
+
+                // показать статистику и график
+                document.getElementById('stats-container').style.display = 'block';
+                document.getElementById('chart-container').style.display = 'block';
+
+                // обновить статистику
+                const statsList = document.getElementById('stats');
+                const stats = data.stats;
+                statsList.innerHTML = `
+                    <li>Среднее (${data.y_label}): ${stats.average.toFixed(2)}</li>
+                    <li>Минимум (${data.y_label}): ${stats.min}</li>
+                    <li>Максимум (${data.y_label}): ${stats.max}</li>
+                    <li>Количество точек: ${stats.data_points}</li>
+                `;
+
+                // обновить график
+                const ctx = document.getElementById('dataChart').getContext('2d');
+                if (chart) chart.destroy();
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.chart_data.labels,
+                        datasets: [{
+                            label: data.y_label,
+                            data: data.chart_data.values,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: data.x_label } },
+                            y: { title: { display: true, text: data.y_label } }
+                        }
+                    }
+                });
+            })
+            .catch(err => {
+                status.textContent = 'Ошибка анализа: ' + err;
+                if (chart) chart.destroy();
+                document.getElementById('stats').innerHTML = '';
+            });
+        });
+    </script>
+</body>
+</html>
