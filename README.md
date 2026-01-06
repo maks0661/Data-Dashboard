@@ -5,7 +5,7 @@ For Windows
 3. pip install flask python-docx werkzeug pandas
 4. Запустить python app.py
 
-5. Перейти на один из flask-адресов:
+5. Перейти на один из flask-адрессов:
 <img width="339" height="75" alt="image" src="https://github.com/user-attachments/assets/d365958a-0701-4402-8799-38372ba34ce5"/>
 
 6. Выбрать данные (.csv, .txt, .docx, .json) и загрузить
