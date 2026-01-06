@@ -1,7 +1,7 @@
 # Data-Dashboard
 For Windows
 1. python -m venv .venv
-2. \.venv\Scripts\Activate
+2. .ㅤ\.venv\Scripts\Activate
 3. pip install flask python-docx werkzeug pandas
 4. Запустить python app.py
 
